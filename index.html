@@ -24,7 +24,7 @@
         .fetish-btn {
             width: 100%;
             min-height: 48px;
-            padding: 8px 2px; /* 少しパディングを詰める */
+            padding: 8px 2px;
             font-size: 0.8rem;
             line-height: 1.2;
             text-transform: none;
@@ -41,7 +41,7 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            word-break: break-all; /* 長い単語の折り返し */
+            word-break: break-all;
         }
         .fetish-btn.active {
             background-color: #f50057 !important;
@@ -51,10 +51,13 @@
             transform: translateY(-2px);
         }
 
-        /* 結果表示スタイル */
+        /* 結果表示スタイル (公開モード用) */
         .fetish-btn.res-correct { background-color: #00c853 !important; color: white !important; border: 2px solid #00c853; }
         .fetish-btn.res-miss { background-color: #fff8e1 !important; color: #ff8f00 !important; border: 2px dashed #ff8f00 !important; opacity: 1; }
         .fetish-btn.res-wrong { background-color: #eceff1 !important; color: #b0bec5 !important; text-decoration: line-through; }
+
+        /* シークレットモード用（正解を隠す） */
+        .fetish-btn.res-secret-selected { background-color: #90a4ae !important; color: white !important; }
 
         .res-badge {
             position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%;
@@ -81,6 +84,10 @@
         .sub-link { text-align: center; margin-top: 12px; font-size: 0.85rem; color: #757575; text-decoration: underline; cursor: pointer; }
         .hidden { display: none !important; }
         .text-bold { font-weight: bold; }
+        
+        /* スイッチ調整 */
+        .switch label input[type=checkbox]:checked+.lever { background-color: #f48fb1; }
+        .switch label input[type=checkbox]:checked+.lever:after { background-color: #e91e63; }
     </style>
 </head>
 <body>
@@ -96,7 +103,7 @@
         </p>
     </div>
 
-    <!-- 名前入力 -->
+    <!-- 名前入力 & 設定 -->
     <div id="section-name" class="row">
         <div class="col s12 m8 offset-m2">
             <div class="card-panel white z-depth-1 center-align">
@@ -104,7 +111,21 @@
                     <i class="material-icons prefix">account_circle</i>
                     <input id="input_name" type="text" class="validate" maxlength="15" placeholder="あなたの名前 (ニックネーム)">
                 </div>
-                <p class="grey-text text-lighten-1" style="font-size: 0.8rem; margin: 0;">※名前はクイズのタイトルに使われます</p>
+                
+                <!-- シークレットモードスイッチ -->
+                <div style="margin-top: 25px; padding-top: 15px; border-top: 1px dashed #eee;">
+                    <div class="switch">
+                        <label>
+                            全公開
+                            <input type="checkbox" id="secret_mode_switch" checked>
+                            <span class="lever"></span>
+                            <span class="pink-text text-accent-2" style="font-weight:bold;">一致度のみ公開</span>
+                        </label>
+                    </div>
+                    <p class="grey-text text-lighten-1" style="font-size: 0.8rem; margin: 8px 0 0 0;">
+                        <i class="material-icons tiny">lock</i> 詳細な正解・不正解を隠して<br>性癖流出を防止します（推奨）
+                    </p>
+                </div>
             </div>
         </div>
     </div>
@@ -125,11 +146,15 @@
     <div id="section-result-header" class="row hidden">
         <div class="col s12 m8 offset-m2">
             <div class="card-panel blue-grey darken-4 white-text center-align z-depth-3">
-                <p class="grey-text text-lighten-2" style="margin:0">シンクロ率</p>
+                <p class="grey-text text-lighten-2" style="margin:0">一致度</p>
                 <div style="font-size: 4.5rem; font-weight: 800; line-height: 1.2; color: #69f0ae;">
                     <span id="score-display">0</span><span style="font-size: 2rem">%</span>
                 </div>
-                <div id="result-comment" style="font-size: 1.2rem; margin-top: 10px;"></div>
+                <div id="result-comment" style="font-size: 1.1rem; margin-top: 10px; font-weight: bold; line-height: 1.4;"></div>
+                
+                <div id="secret-badge" class="hidden" style="margin-top: 10px;">
+                    <span class="chip white black-text"><i class="material-icons tiny">lock</i> 詳細非公開モード</span>
+                </div>
             </div>
         </div>
     </div>
@@ -166,39 +191,30 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 <script>
-    // 対極・対称性を考慮したデータセット (v14.0)
+    // データセット (v14.0)
     const FETISH_DATA = [
         {
             id: 'attr', name: '【属性・見た目】', colorClass: 'red lighten-5', textClass: 'red-text text-darken-2',
             items: [
-                // 年齢・性別ペア (女 ⇔ 男)
                 { id: 102, label: 'ロリ/少女' }, { id: 132, label: 'ショタ/少年' },
                 { id: 101, label: 'お姉さん' }, { id: 153, label: 'お兄さん' },
                 { id: 123, label: '母親/ママ' }, { id: 129, label: '父親/パパ' },
                 { id: 139, label: '人妻/未亡人' }, { id: 154, label: '既婚者/人夫' },
                 { id: 124, label: '熟女/おばさん' }, { id: 130, label: '中年/おじさん' },
-                { id: 128, label: '祖母/シニア' }, { id: 134, label: '祖父/老人' },
-                
-                // 家族ペア
+                { id: 128, label: '祖母/おばあさん' }, { id: 134, label: '祖父/おじいさん' },
                 { id: 125, label: '姉/義姉' }, { id: 131, label: '兄/義兄' },
                 { id: 126, label: '妹/義妹' }, { id: 138, label: '弟/義弟' },
                 { id: 127, label: '娘/姪' }, { id: 133, label: '息子/甥' },
-
-                // 学校・社会・役割ペア (左:女寄りイメージ ⇔ 右:男寄りイメージ ※逆も可)
                 { id: 103, label: '同級生/幼馴染' }, { id: 104, label: '後輩/部下' }, { id: 105, label: '先生/上司' },
                 { id: 106, label: '委員長/優等生' }, { id: 155, label: '不良/ヤンキー' },
                 { id: 107, label: 'ギャル' }, { id: 109, label: '地味/イモ' },
                 { id: 108, label: '清楚/お嬢様' }, { id: 156, label: '御曹司/セレブ' },
                 { id: 142, label: '巫女/シスター' }, { id: 157, label: '神父/僧侶' },
                 { id: 119, label: 'アイドル/配信者' },
-
-                // 性別越境・装い
                 { id: 160, label: '女装/男の娘' }, { id: 120, label: '男装/麗人' },
                 { id: 150, label: 'ニューハーフ' }, { id: 122, label: 'オネエ/オカマ' },
                 { id: 151, label: 'ドラァグクイーン' }, { id: 121, label: '中性的' },
                 { id: 111, label: 'ふたなり' },
-
-                // 人外
                 { id: 112, label: 'ケモミミ' }, { id: 143, label: '獣人/Furry' },
                 { id: 113, label: 'エルフ' }, { id: 146, label: '鬼/角' },
                 { id: 145, label: '天使' }, { id: 144, label: '魔族/サキュバス' },
@@ -214,14 +230,11 @@
                 { id: 215, label: '肥満/デブ' }, { id: 216, label: 'ガリガリ' },
                 { id: 217, label: 'ガチムチ/熊系' }, { id: 207, label: 'ぽっちゃり' },
                 { id: 206, label: '腹筋/筋肉' }, { id: 115, label: '巨女/高身長' }, { id: 135, label: '小柄/低身長' },
-                
                 { id: 208, label: '黒髪ロング' }, { id: 210, label: 'ショートカット' },
                 { id: 209, label: '金髪' }, { id: 220, label: 'ハーフ/外国人' },
-                
                 { id: 213, label: '白肌/色白' }, { id: 116, label: '褐色肌' },
                 { id: 226, label: '糸目/一重' }, { id: 211, label: '八重歯/ギザ歯' },
                 { id: 224, label: '多毛/剛毛' }, { id: 225, label: '無毛/パイパン' },
-                
                 { id: 204, label: '美脚/太もも' }, { id: 205, label: '脇/腋臭' },
                 { id: 212, label: 'ホクロ' }, { id: 222, label: 'タトゥー/紋様' },
                 { id: 218, label: 'ブス/不細工' }, { id: 141, label: 'メガネ' },
@@ -234,7 +247,7 @@
                 { id: 613, label: 'S気質/攻め' }, { id: 614, label: 'M気質/受け' },
                 { id: 615, label: '陰キャ' }, { id: 616, label: '陽キャ/パリピ' },
                 { id: 609, label: '女王様' }, { id: 618, label: '王子様' },
-                { id: 601, label: 'ツンデレ' }, { id: 602, label: 'クーデレ/無口' },
+                { id: 601, label: 'ツンデレ' }, { id: 602, label: '無口' },
                 { id: 603, label: 'ヤンデレ' }, { id: 604, label: 'メンヘラ/地雷' },
                 { id: 605, label: '小悪魔' }, { id: 610, label: '清楚/貞淑' },
                 { id: 606, label: '母性/バブみ(攻)' }, { id: 617, label: '甘えん坊(受)' },
@@ -246,8 +259,8 @@
             id: 'play_soft', name: '【シチュ・関係性】', colorClass: 'teal lighten-5', textClass: 'teal-text text-darken-2',
             items: [
                 { id: 301, label: '純愛/イチャラブ' }, { id: 323, label: '素股' },
-                { id: 316, label: 'クンニ/愛撫' }, { id: 318, label: 'セクハラ/痴漢' },
-                { id: 302, label: '誘惑/逆レイプ' }, { id: 303, label: '主従関係' },
+                { id: 316, label: 'クンニ' }, { id: 318, label: 'セクハラ/痴漢' },
+                { id: 302, label: '逆レイプ' }, { id: 303, label: '主従関係' },
                 { id: 304, label: '近親相姦' }, { id: 305, label: 'ハーレム/3P' },
                 { id: 306, label: '寝取り(NTR)' }, { id: 307, label: '寝取られ' },
                 { id: 309, label: 'コスプレ' }, { id: 321, label: '異性装(プレイ)' },
@@ -265,7 +278,7 @@
                 { id: 514, label: 'ディルド' }, { id: 515, label: 'バイブ' }, { id: 516, label: 'オナホ' },
                 { id: 428, label: '異物挿入' }, { id: 405, label: '放尿/おしっこ' },
                 { id: 418, label: '飲尿/浴尿' }, { id: 406, label: 'スカトロ/便器' },
-                { id: 407, label: '拘束/ボンテージ' }, { id: 408, label: 'スパンキング' },
+                { id: 407, label: '拘束' }, { id: 408, label: 'スパンキング' },
                 { id: 422, label: '首締め/絞殺' }, { id: 411, label: '触手' },
                 { id: 412, label: '丸呑み/Vore' }, { id: 413, label: 'BDSM全般' },
                 { id: 414, label: 'リョナ/欠損' }, { id: 427, label: '媚薬/催淫' },
@@ -274,7 +287,10 @@
     ];
 
     const App = {
-        state: { mode: 'create', selectedIds: new Set(), targetIds: new Set(), targetName: '', score: 0 },
+        state: { 
+            mode: 'create', selectedIds: new Set(), targetIds: new Set(), targetName: '', score: 0,
+            isSecretMode: true // デフォルト: 一致度のみ表示モード
+        },
         init: function() {
             const params = new URLSearchParams(window.location.search);
             const dataParam = params.get('d');
@@ -283,6 +299,7 @@
                 if (decoded.ids.size > 0) {
                     this.state.targetIds = decoded.ids;
                     this.state.targetName = decoded.name;
+                    this.state.isSecretMode = decoded.isSecret; // URLからモード読み込み
                     this.setMode('guess');
                 }
             }
@@ -291,7 +308,8 @@
         },
         encodeData: function(name, ids) {
             try {
-                const data = { n: name, i: Array.from(ids) };
+                const isSecret = document.getElementById('secret_mode_switch').checked ? 1 : 0;
+                const data = { n: name, i: Array.from(ids), s: isSecret };
                 const jsonStr = JSON.stringify(data);
                 const utf8Str = unescape(encodeURIComponent(jsonStr));
                 return btoa(utf8Str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -303,9 +321,10 @@
                 const utf8Str = atob(base64);
                 const jsonStr = decodeURIComponent(escape(utf8Str));
                 const data = JSON.parse(jsonStr);
-                if (Array.isArray(data)) return { name: '匿名', ids: new Set(data) };
-                return { name: data.n || '匿名', ids: new Set(data.i) };
-            } catch (e) { return { name: '', ids: new Set() }; }
+                const isSecret = (data.s === 1);
+                if (Array.isArray(data)) return { name: '匿名', ids: new Set(data), isSecret: false };
+                return { name: data.n || '匿名', ids: new Set(data.i), isSecret: isSecret };
+            } catch (e) { return { name: '', ids: new Set(), isSecret: false }; }
         },
         setMode: function(mode) {
             this.state.mode = mode;
@@ -322,6 +341,9 @@
             } else if (mode === 'result') {
                 document.getElementById('section-result-header').classList.remove('hidden');
                 document.getElementById('action-result').classList.remove('hidden');
+                const badge = document.getElementById('secret-badge');
+                if (this.state.isSecretMode) badge.classList.remove('hidden');
+                else badge.classList.add('hidden');
                 this.updateResultDisplay();
             }
             this.renderFetishList();
@@ -351,18 +373,27 @@
                     let btnClass = 'fetish-btn waves-effect waves-light';
                     let badgeHtml = '';
                     if (this.state.mode === 'result') {
-                        if (isTarget && isSelected) {
-                            btnClass += ' res-correct';
-                            badgeHtml = '<span class="res-badge green white-text"><i class="material-icons tiny">check</i></span>';
-                        } else if (isTarget && !isSelected) {
-                            btnClass += ' res-miss';
-                            badgeHtml = '<span class="res-badge amber white-text">!</span>';
-                        } else if (!isTarget && isSelected) {
-                            btnClass += ' res-wrong';
-                            badgeHtml = '<span class="res-badge grey white-text">×</span>';
+                        if (this.state.isSecretMode) {
+                            if (isSelected) {
+                                btnClass += ' res-secret-selected';
+                            } else {
+                                btnClass += ' grey lighten-4 grey-text text-lighten-1';
+                                btnClass = btnClass.replace('waves-effect', '');
+                            }
                         } else {
-                            btnClass += ' grey lighten-4 grey-text text-lighten-1';
-                            btnClass = btnClass.replace('waves-effect', '');
+                            if (isTarget && isSelected) {
+                                btnClass += ' res-correct';
+                                badgeHtml = '<span class="res-badge green white-text"><i class="material-icons tiny">check</i></span>';
+                            } else if (isTarget && !isSelected) {
+                                btnClass += ' res-miss';
+                                badgeHtml = '<span class="res-badge amber white-text">!</span>';
+                            } else if (!isTarget && isSelected) {
+                                btnClass += ' res-wrong';
+                                badgeHtml = '<span class="res-badge grey white-text">×</span>';
+                            } else {
+                                btnClass += ' grey lighten-4 grey-text text-lighten-1';
+                                btnClass = btnClass.replace('waves-effect', '');
+                            }
                         }
                     } else {
                         if (isSelected) btnClass += ' active';
@@ -405,10 +436,16 @@
         },
         checkAnswer: function() {
             if (this.state.selectedIds.size === 0) { M.toast({html: '予想を選択してください', classes: 'amber rounded'}); return; }
+            
+            // Jaccard Similarity Calculation
             const selectedArr = Array.from(this.state.selectedIds);
-            const correctCount = selectedArr.filter(id => this.state.targetIds.has(id)).length;
-            const totalTarget = this.state.targetIds.size;
-            this.state.score = totalTarget > 0 ? Math.round((correctCount / totalTarget) * 100) : 0;
+            const intersectionSize = selectedArr.filter(id => this.state.targetIds.has(id)).length;
+            const unionSize = this.state.selectedIds.size + this.state.targetIds.size - intersectionSize;
+            
+            this.state.score = unionSize > 0 
+                ? Math.round((intersectionSize / unionSize) * 100) 
+                : 0;
+
             this.setMode('result');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             M.toast({html: '答え合わせ完了！', classes: 'blue rounded'});
@@ -416,17 +453,20 @@
         updateResultDisplay: function() {
             document.getElementById('score-display').textContent = this.state.score;
             let comment = "";
-            if (this.state.score === 100) comment = "完全一致！運命の相手かも！？";
-            else if (this.state.score >= 80) comment = "素晴らしい理解者です！";
-            else if (this.state.score >= 50) comment = "なかなか良いセンいってます。";
-            else comment = "解釈違い！？";
-            document.getElementById('result-comment').textContent = comment;
+            const name = this.state.targetName;
+            
+            if (this.state.score === 100) comment = `${name}の性癖と完全一致！！<br>運命の相手かも！？`;
+            else if (this.state.score >= 80) comment = `${name}の素晴らしい理解者です！`;
+            else if (this.state.score >= 50) comment = `なかなか良いセンいってます。`;
+            else comment = `解釈違い！？<br>もっと仲良くなりましょう。`;
+            
+            document.getElementById('result-comment').innerHTML = comment;
         },
         shareResult: function() {
             const url = window.location.href;
             const name = this.state.targetName;
             const score = this.state.score;
-            const text = `${name}さんの性癖を予想しました！シンクロ率${score}%でした。 #性癖当てクイズ`;
+            const text = `${name}さんの性癖を予想しました！一致度${score}%でした。 #性癖当てクイズ`;
             const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
             window.open(twitterUrl, '_blank');
         },
@@ -434,6 +474,7 @@
             this.state.selectedIds.clear(); this.state.targetIds.clear(); this.state.targetName = ''; this.state.score = 0; this.state.mode = 'create';
             window.history.pushState({}, document.title, window.location.pathname);
             document.getElementById('input_name').value = '';
+            document.getElementById('secret_mode_switch').checked = true;
             this.setMode('create');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
