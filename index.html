@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>性癖当てクイズ</title>
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            background-color: #f5f5f5;
+            padding-bottom: 140px;
+            touch-action: manipulation;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .container { max-width: 800px; }
+
+        /* ボタンデザイン */
+        .fetish-btn {
+            width: 100%;
+            min-height: 48px;
+            padding: 8px 2px; /* 少しパディングを詰める */
+            font-size: 0.8rem;
+            line-height: 1.2;
+            text-transform: none;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            box-shadow: none;
+            border: 1px solid #e0e0e0;
+            background-color: #fff;
+            color: #424242;
+            transition: all 0.2s;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            word-break: break-all; /* 長い単語の折り返し */
+        }
+        .fetish-btn.active {
+            background-color: #f50057 !important;
+            color: #fff !important;
+            border-color: #f50057;
+            box-shadow: 0 4px 10px rgba(245, 0, 87, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* 結果表示スタイル */
+        .fetish-btn.res-correct { background-color: #00c853 !important; color: white !important; border: 2px solid #00c853; }
+        .fetish-btn.res-miss { background-color: #fff8e1 !important; color: #ff8f00 !important; border: 2px dashed #ff8f00 !important; opacity: 1; }
+        .fetish-btn.res-wrong { background-color: #eceff1 !important; color: #b0bec5 !important; text-decoration: line-through; }
+
+        .res-badge {
+            position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 12px; z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Twitterボタン */
+        .btn-twitter-black {
+            background-color: #000 !important; color: white !important; width: 100%; height: 56px;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            font-weight: bold; border-radius: 50px; font-size: 1.1rem; text-transform: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: none; cursor: pointer;
+        }
+
+        /* フローティングバー */
+        .bottom-bar {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: rgba(255,255,255,0.95); padding: 15px 20px 25px 20px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 1000;
+            display: flex; justify-content: center; flex-direction: column; align-items: center;
+        }
+        .bottom-content { width: 100%; max-width: 800px; }
+        .sub-link { text-align: center; margin-top: 12px; font-size: 0.85rem; color: #757575; text-decoration: underline; cursor: pointer; }
+        .hidden { display: none !important; }
+        .text-bold { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="center-align section" style="padding-top: 2rem;">
+        <h4 class="pink-text text-accent-3 text-bold" style="margin-bottom: 0.5rem; letter-spacing: -1px;">
+            <i class="material-icons medium" style="vertical-align: bottom;">quiz</i>
+            性癖当てクイズ
+        </h4>
+        <p class="grey-text text-darken-1" style="font-size: 1.1rem; margin-top: 0;">
+            みんなに性癖を当ててもらおう
+        </p>
+    </div>
+
+    <!-- 名前入力 -->
+    <div id="section-name" class="row">
+        <div class="col s12 m8 offset-m2">
+            <div class="card-panel white z-depth-1 center-align">
+                <div class="input-field" style="margin-top: 0;">
+                    <i class="material-icons prefix">account_circle</i>
+                    <input id="input_name" type="text" class="validate" maxlength="15" placeholder="あなたの名前 (ニックネーム)">
+                </div>
+                <p class="grey-text text-lighten-1" style="font-size: 0.8rem; margin: 0;">※名前はクイズのタイトルに使われます</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 予想ヘッダー -->
+    <div id="section-guess-header" class="row hidden">
+        <div class="col s12 m8 offset-m2">
+            <div class="card-panel cyan lighten-5 z-depth-1 center-align">
+                <h5 class="cyan-text text-darken-3 text-bold" style="margin-top:0">
+                    <span id="target-name-display"></span>の性癖を予想！
+                </h5>
+                <p class="grey-text text-darken-2">当てはまる項目を選んで「答え合わせ」してください。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 結果ヘッダー -->
+    <div id="section-result-header" class="row hidden">
+        <div class="col s12 m8 offset-m2">
+            <div class="card-panel blue-grey darken-4 white-text center-align z-depth-3">
+                <p class="grey-text text-lighten-2" style="margin:0">シンクロ率</p>
+                <div style="font-size: 4.5rem; font-weight: 800; line-height: 1.2; color: #69f0ae;">
+                    <span id="score-display">0</span><span style="font-size: 2rem">%</span>
+                </div>
+                <div id="result-comment" style="font-size: 1.2rem; margin-top: 10px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- リスト -->
+    <div id="fetish-container"></div>
+</div>
+
+<div class="bottom-bar">
+    <div class="bottom-content">
+        <div id="action-create">
+            <button onclick="App.shareDirectly()" class="btn-twitter-black waves-effect waves-light hoverable">
+                <i class="fa-brands fa-x-twitter"></i><span>みんなに当ててもらう</span>
+            </button>
+            <div onclick="App.copyUrlOnly()" class="sub-link">URLだけコピーする</div>
+        </div>
+        <button id="btn-guess" class="btn-large waves-effect waves-light cyan accent-4 hidden" style="width:100%; border-radius: 50px; font-weight:bold;">
+            <i class="material-icons left">check_circle</i> 答え合わせ
+        </button>
+        <div id="action-result" class="row hidden" style="margin-bottom: 0;">
+            <div class="col s6">
+                <button onclick="App.reset()" class="btn waves-effect waves-light blue-grey darken-1" style="width:100%; border-radius: 8px;">
+                    <i class="material-icons left">refresh</i> 自分も
+                </button>
+            </div>
+            <div class="col s6">
+                <button onclick="App.shareResult()" class="btn waves-effect waves-light blue" style="width:100%; border-radius: 8px;">
+                    <i class="material-icons left">share</i> 結果シェア
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<script>
+    // 対極・対称性を考慮したデータセット (v14.0)
+    const FETISH_DATA = [
+        {
+            id: 'attr', name: '【属性・見た目】', colorClass: 'red lighten-5', textClass: 'red-text text-darken-2',
+            items: [
+                // 年齢・性別ペア (女 ⇔ 男)
+                { id: 102, label: 'ロリ/少女' }, { id: 132, label: 'ショタ/少年' },
+                { id: 101, label: 'お姉さん' }, { id: 153, label: 'お兄さん' },
+                { id: 123, label: '母親/ママ' }, { id: 129, label: '父親/パパ' },
+                { id: 139, label: '人妻/未亡人' }, { id: 154, label: '既婚者/人夫' },
+                { id: 124, label: '熟女/おばさん' }, { id: 130, label: '中年/おじさん' },
+                { id: 128, label: '祖母/シニア' }, { id: 134, label: '祖父/老人' },
+                
+                // 家族ペア
+                { id: 125, label: '姉/義姉' }, { id: 131, label: '兄/義兄' },
+                { id: 126, label: '妹/義妹' }, { id: 138, label: '弟/義弟' },
+                { id: 127, label: '娘/姪' }, { id: 133, label: '息子/甥' },
+
+                // 学校・社会・役割ペア (左:女寄りイメージ ⇔ 右:男寄りイメージ ※逆も可)
+                { id: 103, label: '同級生/幼馴染' }, { id: 104, label: '後輩/部下' }, { id: 105, label: '先生/上司' },
+                { id: 106, label: '委員長/優等生' }, { id: 155, label: '不良/ヤンキー' },
+                { id: 107, label: 'ギャル' }, { id: 109, label: '地味/イモ' },
+                { id: 108, label: '清楚/お嬢様' }, { id: 156, label: '御曹司/セレブ' },
+                { id: 142, label: '巫女/シスター' }, { id: 157, label: '神父/僧侶' },
+                { id: 119, label: 'アイドル/配信者' },
+
+                // 性別越境・装い
+                { id: 160, label: '女装/男の娘' }, { id: 120, label: '男装/麗人' },
+                { id: 150, label: 'ニューハーフ' }, { id: 122, label: 'オネエ/オカマ' },
+                { id: 151, label: 'ドラァグクイーン' }, { id: 121, label: '中性的' },
+                { id: 111, label: 'ふたなり' },
+
+                // 人外
+                { id: 112, label: 'ケモミミ' }, { id: 143, label: '獣人/Furry' },
+                { id: 113, label: 'エルフ' }, { id: 146, label: '鬼/角' },
+                { id: 145, label: '天使' }, { id: 144, label: '魔族/サキュバス' },
+                { id: 114, label: 'アンドロイド' }, { id: 118, label: '人外/モンスター' },
+                { id: 147, label: '幽霊/ゾンビ' },
+            ]
+        },
+        {
+            id: 'body', name: '【身体・特徴】', colorClass: 'purple lighten-5', textClass: 'purple-text text-darken-2',
+            items: [
+                { id: 201, label: '巨乳/爆乳' }, { id: 202, label: '貧乳/微乳' },
+                { id: 203, label: '巨尻/安産型' }, { id: 219, label: '垂れ乳' },
+                { id: 215, label: '肥満/デブ' }, { id: 216, label: 'ガリガリ' },
+                { id: 217, label: 'ガチムチ/熊系' }, { id: 207, label: 'ぽっちゃり' },
+                { id: 206, label: '腹筋/筋肉' }, { id: 115, label: '巨女/高身長' }, { id: 135, label: '小柄/低身長' },
+                
+                { id: 208, label: '黒髪ロング' }, { id: 210, label: 'ショートカット' },
+                { id: 209, label: '金髪' }, { id: 220, label: 'ハーフ/外国人' },
+                
+                { id: 213, label: '白肌/色白' }, { id: 116, label: '褐色肌' },
+                { id: 226, label: '糸目/一重' }, { id: 211, label: '八重歯/ギザ歯' },
+                { id: 224, label: '多毛/剛毛' }, { id: 225, label: '無毛/パイパン' },
+                
+                { id: 204, label: '美脚/太もも' }, { id: 205, label: '脇/腋臭' },
+                { id: 212, label: 'ホクロ' }, { id: 222, label: 'タトゥー/紋様' },
+                { id: 218, label: 'ブス/不細工' }, { id: 141, label: 'メガネ' },
+                { id: 117, label: '処女/童貞' },
+            ]
+        },
+        {
+            id: 'personality', name: '【性格・内面】', colorClass: 'blue lighten-5', textClass: 'blue-text text-darken-2',
+            items: [
+                { id: 613, label: 'S気質/攻め' }, { id: 614, label: 'M気質/受け' },
+                { id: 615, label: '陰キャ' }, { id: 616, label: '陽キャ/パリピ' },
+                { id: 609, label: '女王様' }, { id: 618, label: '王子様' },
+                { id: 601, label: 'ツンデレ' }, { id: 602, label: 'クーデレ/無口' },
+                { id: 603, label: 'ヤンデレ' }, { id: 604, label: 'メンヘラ/地雷' },
+                { id: 605, label: '小悪魔' }, { id: 610, label: '清楚/貞淑' },
+                { id: 606, label: '母性/バブみ(攻)' }, { id: 617, label: '甘えん坊(受)' },
+                { id: 607, label: '生意気/メスガキ' }, { id: 608, label: 'ポンコツ/ドジ' },
+                { id: 612, label: 'サバサバ/姉御肌' },
+            ]
+        },
+        {
+            id: 'play_soft', name: '【シチュ・関係性】', colorClass: 'teal lighten-5', textClass: 'teal-text text-darken-2',
+            items: [
+                { id: 301, label: '純愛/イチャラブ' }, { id: 323, label: '素股' },
+                { id: 316, label: 'クンニ/愛撫' }, { id: 318, label: 'セクハラ/痴漢' },
+                { id: 302, label: '誘惑/逆レイプ' }, { id: 303, label: '主従関係' },
+                { id: 304, label: '近親相姦' }, { id: 305, label: 'ハーレム/3P' },
+                { id: 306, label: '寝取り(NTR)' }, { id: 307, label: '寝取られ' },
+                { id: 309, label: 'コスプレ' }, { id: 321, label: '異性装(プレイ)' },
+                { id: 324, label: '女体化' }, { id: 325, label: '男体化' },
+                { id: 310, label: 'TS(性転換)' }, { id: 311, label: '催眠/洗脳' },
+                { id: 312, label: '時間停止' }, { id: 320, label: '赤ちゃんプレイ' },
+            ]
+        },
+        {
+            id: 'play_hard', name: '【プレイ・アイテム】', colorClass: 'amber lighten-5', textClass: 'amber-text text-darken-4',
+            items: [
+                { id: 401, label: '中出し/種付け' }, { id: 417, label: '顔射/ぶっかけ' },
+                { id: 402, label: 'フェラ/イラマ' }, { id: 403, label: 'パイズリ' },
+                { id: 404, label: 'アナル' }, { id: 430, label: '浣腸/エネマ' },
+                { id: 514, label: 'ディルド' }, { id: 515, label: 'バイブ' }, { id: 516, label: 'オナホ' },
+                { id: 428, label: '異物挿入' }, { id: 405, label: '放尿/おしっこ' },
+                { id: 418, label: '飲尿/浴尿' }, { id: 406, label: 'スカトロ/便器' },
+                { id: 407, label: '拘束/ボンテージ' }, { id: 408, label: 'スパンキング' },
+                { id: 422, label: '首締め/絞殺' }, { id: 411, label: '触手' },
+                { id: 412, label: '丸呑み/Vore' }, { id: 413, label: 'BDSM全般' },
+                { id: 414, label: 'リョナ/欠損' }, { id: 427, label: '媚薬/催淫' },
+            ]
+        }
+    ];
+
+    const App = {
+        state: { mode: 'create', selectedIds: new Set(), targetIds: new Set(), targetName: '', score: 0 },
+        init: function() {
+            const params = new URLSearchParams(window.location.search);
+            const dataParam = params.get('d');
+            if (dataParam) {
+                const decoded = this.decodeData(dataParam);
+                if (decoded.ids.size > 0) {
+                    this.state.targetIds = decoded.ids;
+                    this.state.targetName = decoded.name;
+                    this.setMode('guess');
+                }
+            }
+            this.renderFetishList();
+            this.setupEventListeners();
+        },
+        encodeData: function(name, ids) {
+            try {
+                const data = { n: name, i: Array.from(ids) };
+                const jsonStr = JSON.stringify(data);
+                const utf8Str = unescape(encodeURIComponent(jsonStr));
+                return btoa(utf8Str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            } catch (e) { return ""; }
+        },
+        decodeData: function(str) {
+            try {
+                const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+                const utf8Str = atob(base64);
+                const jsonStr = decodeURIComponent(escape(utf8Str));
+                const data = JSON.parse(jsonStr);
+                if (Array.isArray(data)) return { name: '匿名', ids: new Set(data) };
+                return { name: data.n || '匿名', ids: new Set(data.i) };
+            } catch (e) { return { name: '', ids: new Set() }; }
+        },
+        setMode: function(mode) {
+            this.state.mode = mode;
+            ['section-name', 'section-guess-header', 'section-result-header', 'action-create', 'btn-guess', 'action-result'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            if (mode === 'create') {
+                document.getElementById('section-name').classList.remove('hidden');
+                document.getElementById('action-create').classList.remove('hidden');
+            } else if (mode === 'guess') {
+                document.getElementById('section-guess-header').classList.remove('hidden');
+                document.getElementById('target-name-display').textContent = this.state.targetName;
+                document.getElementById('btn-guess').classList.remove('hidden');
+            } else if (mode === 'result') {
+                document.getElementById('section-result-header').classList.remove('hidden');
+                document.getElementById('action-result').classList.remove('hidden');
+                this.updateResultDisplay();
+            }
+            this.renderFetishList();
+        },
+        toggleId: function(id) {
+            if (this.state.mode === 'result') return;
+            if (this.state.selectedIds.has(id)) this.state.selectedIds.delete(id);
+            else this.state.selectedIds.add(id);
+            this.updateButtonState(id);
+        },
+        updateButtonState: function(id) {
+            const btn = document.getElementById(`btn-${id}`);
+            if (!btn) return;
+            if (this.state.selectedIds.has(id)) btn.classList.add('active');
+            else btn.classList.remove('active');
+        },
+        renderFetishList: function() {
+            const container = document.getElementById('fetish-container');
+            container.innerHTML = '';
+            FETISH_DATA.forEach(cat => {
+                const card = document.createElement('div');
+                card.className = `card ${cat.colorClass}`;
+                let itemsHtml = '';
+                cat.items.forEach(item => {
+                    const isSelected = this.state.selectedIds.has(item.id);
+                    const isTarget = this.state.targetIds.has(item.id);
+                    let btnClass = 'fetish-btn waves-effect waves-light';
+                    let badgeHtml = '';
+                    if (this.state.mode === 'result') {
+                        if (isTarget && isSelected) {
+                            btnClass += ' res-correct';
+                            badgeHtml = '<span class="res-badge green white-text"><i class="material-icons tiny">check</i></span>';
+                        } else if (isTarget && !isSelected) {
+                            btnClass += ' res-miss';
+                            badgeHtml = '<span class="res-badge amber white-text">!</span>';
+                        } else if (!isTarget && isSelected) {
+                            btnClass += ' res-wrong';
+                            badgeHtml = '<span class="res-badge grey white-text">×</span>';
+                        } else {
+                            btnClass += ' grey lighten-4 grey-text text-lighten-1';
+                            btnClass = btnClass.replace('waves-effect', '');
+                        }
+                    } else {
+                        if (isSelected) btnClass += ' active';
+                    }
+                    itemsHtml += `
+                        <div class="col s4 m3 l2" style="padding: 4px;">
+                            <div style="position: relative;">
+                                <button id="btn-${item.id}" class="${btnClass}" onclick="App.toggleId(${item.id})">
+                                    ${item.label}
+                                </button>
+                                ${badgeHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+                card.innerHTML = `<div class="card-content" style="padding: 16px;"><span class="card-title ${cat.textClass}" style="font-size: 1.1rem; font-weight: bold; margin-bottom: 12px;">${cat.name}</span><div class="row" style="margin-bottom: 0;">${itemsHtml}</div></div>`;
+                container.appendChild(card);
+            });
+        },
+        generateShareData: function() {
+            const nameInput = document.getElementById('input_name');
+            const name = nameInput.value.trim();
+            if (!name) { M.toast({html: '名前を入力してください', classes: 'red rounded'}); window.scrollTo({ top: 0, behavior: 'smooth' }); return null; }
+            if (this.state.selectedIds.size === 0) { M.toast({html: '性癖を1つ以上選択してください', classes: 'amber rounded'}); return null; }
+            const encoded = this.encodeData(name, this.state.selectedIds);
+            const url = `${window.location.origin}${window.location.pathname}?d=${encoded}`;
+            return { name, url };
+        },
+        shareDirectly: function() {
+            const data = this.generateShareData();
+            if (!data) return;
+            const text = `${data.name}の性癖、当てられる？ #性癖当てクイズ`;
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(data.url)}`;
+            window.open(twitterUrl, '_blank');
+        },
+        copyUrlOnly: function() {
+            const data = this.generateShareData();
+            if (!data) return;
+            navigator.clipboard.writeText(data.url).then(() => { M.toast({html: 'URLをコピーしました！', classes: 'green rounded'}); });
+        },
+        checkAnswer: function() {
+            if (this.state.selectedIds.size === 0) { M.toast({html: '予想を選択してください', classes: 'amber rounded'}); return; }
+            const selectedArr = Array.from(this.state.selectedIds);
+            const correctCount = selectedArr.filter(id => this.state.targetIds.has(id)).length;
+            const totalTarget = this.state.targetIds.size;
+            this.state.score = totalTarget > 0 ? Math.round((correctCount / totalTarget) * 100) : 0;
+            this.setMode('result');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            M.toast({html: '答え合わせ完了！', classes: 'blue rounded'});
+        },
+        updateResultDisplay: function() {
+            document.getElementById('score-display').textContent = this.state.score;
+            let comment = "";
+            if (this.state.score === 100) comment = "完全一致！運命の相手かも！？";
+            else if (this.state.score >= 80) comment = "素晴らしい理解者です！";
+            else if (this.state.score >= 50) comment = "なかなか良いセンいってます。";
+            else comment = "解釈違い！？";
+            document.getElementById('result-comment').textContent = comment;
+        },
+        shareResult: function() {
+            const url = window.location.href;
+            const name = this.state.targetName;
+            const score = this.state.score;
+            const text = `${name}さんの性癖を予想しました！シンクロ率${score}%でした。 #性癖当てクイズ`;
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+            window.open(twitterUrl, '_blank');
+        },
+        reset: function() {
+            this.state.selectedIds.clear(); this.state.targetIds.clear(); this.state.targetName = ''; this.state.score = 0; this.state.mode = 'create';
+            window.history.pushState({}, document.title, window.location.pathname);
+            document.getElementById('input_name').value = '';
+            this.setMode('create');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+        setupEventListeners: function() {
+            document.getElementById('btn-guess').onclick = () => this.checkAnswer();
+        }
+    };
+    document.addEventListener('DOMContentLoaded', () => { App.init(); });
+</script>
+</body>
+</html>
